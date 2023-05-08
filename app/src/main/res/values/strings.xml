@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Acceleromator mini project</string>
+    <string name="alert_title">Error</string>
+    <string name="alert_body">Somehow an error occurred</string>
+    <string name="alert_confirm">OK</string>
+    <string name="timer_text">%1.2f S</string>
+    <string name="timer_heading">Time remaining</string>
+    <string name="failed_time_text">You held still for: %1.2f S</string>
+    <string name="failed_try_again">Try again?</string>
+    <string name="ready_prompt">Ready to Start?</string>
+    <string name="ready_start_text">Start timer</string>
+    <string name="success_text">You did it!</string>
+    <string name="success_try_again">Try again?</string>
+</resources>
