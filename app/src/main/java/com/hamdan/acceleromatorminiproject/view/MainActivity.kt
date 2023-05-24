@@ -11,14 +11,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.hamdan.acceleromatorminiproject.MainPageContent
 import com.hamdan.acceleromatorminiproject.SensorViewModel
 import com.hamdan.acceleromatorminiproject.TimerService
 import com.hamdan.acceleromatorminiproject.data.Acceleration
+import com.hamdan.acceleromatorminiproject.view.Navigation.HIGH_SCORE
+import com.hamdan.acceleromatorminiproject.view.Navigation.MAIN_PAGE
+import com.hamdan.acceleromatorminiproject.view.compose.HighScoreScreen
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
     // assumption is absolute 0 relative movement so we start with an acceleration set of 0
     private val acceleration = Array(3) { 0f }
 
@@ -31,23 +38,42 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val intent = Intent(this, TimerService::class.java)
         setContent {
-            MainPageContent(
-                state = sensorViewModel.state.value,
-                onReadyClicked = {
-                    if (isBound) {
+            val navController = rememberNavController()
+            NavHost(navController = navController, startDestination = MAIN_PAGE) {
+                composable(MAIN_PAGE) {
+                    MainPageContent(
+                        state = sensorViewModel.state.value,
+                        onReadyClicked = {
+                            if (isBound) {
+                                unbindService()
+                            }
+                            bindService()
+                            startForegroundService(intent)
+                        },
+                        onErrorDismiss = {
+                            sensorViewModel.errorDialogDismissed()
+                        },
+                        onHighScoreClicked = {
+                            sensorViewModel.highScoreButtonClicked()
+                            navController.navigate(HIGH_SCORE) {
+                                popUpTo(MAIN_PAGE) { inclusive = true }
+                            }
+                        }
+                    )
+                    if (sensorViewModel.state.value is SensorViewModel.SensorState.Success || sensorViewModel.state.value is SensorViewModel.SensorState.Error) {
                         unbindService()
-                        bindService()
-                    } else {
-                        bindService()
                     }
-                    startForegroundService(intent)
-                },
-                onErrorDismiss = {
-                    sensorViewModel.errorDialogDismissed()
-                },
-            )
-            if (sensorViewModel.state.value is SensorViewModel.SensorState.Success || sensorViewModel.state.value is SensorViewModel.SensorState.Error) {
-                unbindService()
+                }
+                composable(HIGH_SCORE) {
+                    HighScoreScreen(
+                        state = sensorViewModel.state.value,
+                        leavePage = {
+                            navController.navigate(MAIN_PAGE) {
+                                popUpTo(HIGH_SCORE) { inclusive = true }
+                            }
+                        }
+                    )
+                }
             }
         }
     }

@@ -3,18 +3,34 @@ package com.hamdan.acceleromatorminiproject
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.hamdan.acceleromatorminiproject.GlobalConstants.TIMER_DURATION_MS
 import com.hamdan.acceleromatorminiproject.data.Acceleration
 import com.hamdan.acceleromatorminiproject.data.majorDifference
+import com.hamdan.acceleromatorminiproject.domain.Score
+import com.hamdan.acceleromatorminiproject.usecase.FetchHighScoresUseCase
+import com.hamdan.acceleromatorminiproject.usecase.SaveScoreUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SensorViewModel : ViewModel() {
+@HiltViewModel
+class SensorViewModel @Inject constructor(
+    private val fetchHighScoresUseCase: FetchHighScoresUseCase,
+    private val saveScoreUseCase: SaveScoreUseCase,
+) : ViewModel() {
     sealed interface SensorState {
         object Ready : SensorState
         data class Counting(
             val acceleration: Acceleration,
-            val elapsedTime: Long = 0
+            val elapsedTime: Long = 0,
         ) : SensorState
 
+        data class ScoreScreen(
+            val scoreList: List<Score>
+        ) : SensorState
+
+        object Loading : SensorState
         object Error : SensorState
         object Success : SensorState
         data class Failure(val elapsedTime: Long) : SensorState
@@ -29,6 +45,15 @@ class SensorViewModel : ViewModel() {
             _state.value = value
         }
 
+    fun highScoreButtonClicked() {
+        sensorState = SensorState.Loading
+        viewModelScope.launch {
+            sensorState = SensorState.ScoreScreen(
+                scoreList = fetchHighScoresUseCase.invoke()
+            )
+        }
+    }
+
     fun readyClicked(acceleration: Acceleration) {
         startCount(acceleration)
     }
@@ -42,6 +67,16 @@ class SensorViewModel : ViewModel() {
             val elapsedTime = (state.value as SensorState.Counting).elapsedTime
             if (elapsedTime >= TIMER_DURATION_MS) {
                 succeed()
+                viewModelScope.launch {
+                    val score =
+                        Score(dateAcquired = System.currentTimeMillis(), elapsedTime = elapsedTime)
+                    fetchHighScoresUseCase.invoke()
+                        .plus(score)
+                        .sortedWith(compareByDescending<Score> { it.elapsedTime }
+                            .thenBy { it.dateAcquired })
+                        .apply { if (this.size > 10) this.dropLast(1) }
+                        .also { saveScoreUseCase.invoke(it) }
+                }
             } else {
                 state.value = (state.value as SensorState.Counting).copy(elapsedTime = newTime)
             }
@@ -71,7 +106,19 @@ class SensorViewModel : ViewModel() {
 
     private fun failed() {
         if (state.value is SensorState.Counting) {
-            sensorState = SensorState.Failure((state.value as SensorState.Counting).elapsedTime)
+            sensorState =
+                SensorState.Failure((state.value as SensorState.Counting).elapsedTime).also {
+                    viewModelScope.launch {
+                        val score =
+                            Score(dateAcquired = System.currentTimeMillis(), elapsedTime = it.elapsedTime)
+                        fetchHighScoresUseCase.invoke()
+                            .plus(score)
+                            .sortedWith(compareByDescending<Score> { it.elapsedTime }
+                                .thenBy { it.dateAcquired })
+                            .apply { if (this.size > 10) this.dropLast(1) }
+                            .also { saveScoreUseCase.invoke(it) }
+                    }
+                }
         } else {
             throw Exception("Shouldn't be being sent here if not counting")
         }

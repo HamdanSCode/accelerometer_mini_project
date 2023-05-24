@@ -15,6 +15,7 @@ fun MainPageContent(
     state: SensorViewModel.SensorState,
     onReadyClicked: () -> Unit,
     onErrorDismiss: () -> Unit,
+    onHighScoreClicked: () -> Unit,
 ) {
     when (state) {
         is SensorViewModel.SensorState.Counting -> {
@@ -61,6 +62,11 @@ fun MainPageContent(
             }) {
                 Text(text = stringResource(id = R.string.failed_try_again))
             }
+            Button(onClick = {
+                onHighScoreClicked()
+            }) {
+                Text(text = stringResource(id = R.string.to_score_screen))
+            }
         }
 
         SensorViewModel.SensorState.Ready -> {
@@ -70,6 +76,11 @@ fun MainPageContent(
                     onReadyClicked()
                 }) {
                     Text(text = stringResource(id = R.string.ready_start_text))
+                }
+                Button(onClick = {
+                    onHighScoreClicked()
+                }) {
+                    Text(text = stringResource(id = R.string.to_score_screen))
                 }
             }
         }
@@ -81,6 +92,39 @@ fun MainPageContent(
                     onReadyClicked()
                 }) {
                     Text(text = stringResource(id = R.string.success_try_again))
+                }
+                Button(onClick = {
+                    onHighScoreClicked()
+                }) {
+                    Text(text = stringResource(id = R.string.to_score_screen))
+                }
+            }
+        }
+
+        SensorViewModel.SensorState.Loading -> {
+            StandardWrapper {
+                Text(text = stringResource(id = R.string.loading))
+                Button(onClick = {}, enabled = false) {
+                    Text(text = stringResource(id = R.string.loading))
+                }
+                Button(onClick = {}, enabled = false) {
+                    Text(text = stringResource(id = R.string.loading))
+                }
+            }
+        }
+
+        is SensorViewModel.SensorState.ScoreScreen -> {
+            StandardWrapper {
+                Text(text = stringResource(id = R.string.ready_prompt))
+                Button(onClick = {
+                    onReadyClicked()
+                }) {
+                    Text(text = stringResource(id = R.string.ready_start_text))
+                }
+                Button(onClick = {
+                    onHighScoreClicked()
+                }) {
+                    Text(text = stringResource(id = R.string.to_score_screen))
                 }
             }
         }
